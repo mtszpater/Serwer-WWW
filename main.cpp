@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <assert.h>
+#include <iostream>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,90 +13,113 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "sockwrap.h"
+#include <fstream>
+#include <streambuf>
+#include <string>       // std::string
+#include <iostream>     // std::cout
+#include <sstream>
 
 
-int Socket(int family, int type, int protocol) {
-    int n;
-    if ((n = socket(family, type, protocol)) < 0)
-        printf("socket error");
-    return n;
+using namespace std;
+
+bool isGetMethod(string header) {
+    return (header.find("GET") != std::string::npos);
 }
 
-void Bind(int fd, const struct sockaddr_in *sa, socklen_t salen) {
-    if (bind(fd, (struct sockaddr *) sa, salen) < 0)
-        printf("bind error");
+string buildResponse(string status, string contentType, string contentLength, string data) {
+    return "HTTP/1.1 " + status + " \r\n Content-Type: " + contentType + " \r\n Content-Length: " + contentLength +
+           " \r\n\r\n " + data;
 }
 
-void Connect(int fd, const struct sockaddr_in *sa, socklen_t salen) {
-    if (connect(fd, (struct sockaddr *) sa, salen) < 0)
-        printf("connect error");
+string createContentType(string header) {
+    if (header.find(".html") != std::string::npos) {
+        return "text/html";
+    }
+
+    if (header.find(".txt") != std::string::npos) {
+        return "text/plain";
+    }
+
+    if (header.find(".png") != std::string::npos) {
+        return "image/png";
+    }
+
+    if (header.find(".jpg") != std::string::npos) {
+        return "image/jpg";
+    }
+
+    if (header.find(".jpeg") != std::string::npos) {
+        return "image/jpeg";
+    }
+
+    if (header.find(".css") != std::string::npos) {
+        return "application/x-pointplus";
+    }
+
+    if (header.find(".pdf") != std::string::npos) {
+        return "application/pdf";
+    }
+
+    return "application/octet-stream";
 }
 
-int Accept(int fd, struct sockaddr_in *sa, socklen_t *salenptr) {
-    int n;
-    if ((n = accept(fd, (struct sockaddr *) sa, salenptr)) < 0)
-        printf("accept error");
-    return n;
+string extractPath(string header) {
+    char *header2 = &header[0u];
+    string path = "";
+    for (int i = 4; header2[i] != ' '; ++i) {
+        path += header2[i];
+    }
+
+    if (path == "/") path = "/index.html";
+
+    return path;
 }
 
-void Listen(int fd, int backlog) {
-    if (listen(fd, backlog) < 0)
-        printf("listen error");
+string get_file_string(string path) {
+    cout << "PACZAM W SCIEZKE: " << path;
+    std::ifstream ifs(path);
+    return string((std::istreambuf_iterator<char>(ifs)),
+                  (std::istreambuf_iterator<char>()));
 }
 
-ssize_t Recv(int fd, char *ptr, size_t nbytes, int flags) {
-    int n;
-    if ((n = recv(fd, ptr, nbytes, flags)) < 0)
-        printf("recv error");
-    ptr[n] = 0;
-    return n;
-}
 
-void Send(int fd, char *ptr, int nbytes, int flags) {
-    // to niekoniecznie jest blad!
-    if (send(fd, ptr, nbytes, flags) < nbytes)
-        printf("send error");
-}
+int main(int argc, char *argv[]) {
+    int port = atoi(argv[1]);
+    string dir = argv[2];
 
-void Close(int fd) {
-    if (close(fd) < 0)
-        printf("close error");
-}
-
-int Select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout) {
-    int n;
-    if ((n = select(nfds, readfds, writefds, exceptfds, timeout)) < 0)
-        printf("select error");
-    return n;
-}
-
-int main() {
     int sockfd = Socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in server_address;
     bzero(&server_address, sizeof(server_address));
     server_address.sin_family = AF_INET;
-    server_address.sin_port = htons(8888);
+    server_address.sin_port = htons(port);
     server_address.sin_addr.s_addr = htonl(INADDR_ANY);
     Bind(sockfd, &server_address, sizeof(server_address));
     Listen(sockfd, 64);
 
+    const int BUFFER_SIZE = 1000;
+
+
     while (1) {
-        // accept() jak poprzednio, ale wypisujemy informacje na temat klienta
         struct sockaddr_in client_address;
-
         int conn_sockfd = Accept(sockfd, NULL, NULL);
-        char ip_address[20];
-
-
-        const int BUFFER_SIZE = 1000;
+        string response;
         char recv_buffer[BUFFER_SIZE + 1];
-
 
         Recv(conn_sockfd, recv_buffer, BUFFER_SIZE, 0);
 
-        for (int i = 0; i < BUFFER_SIZE; ++i) {
-            printf("%c", recv_buffer[i]);
+        string recv = recv_buffer;
+
+
+        if (!isGetMethod(recv)) {
+            response = buildResponse("501 Not Implemented", "text/plain", "18", "asdasdasd");
+        } else {
+            string path = "~/" + dir + extractPath(recv);
+            response = buildResponse("200 OK", createContentType(recv), "18", "aasdasd");
+            cout << get_file_string(path) << endl;//you can do anything with the string!!!
         }
+
+        Send(conn_sockfd, &response[0u], response.length(), 0);
 
         Close(conn_sockfd);
         printf("Disconnected\n");
