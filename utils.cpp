@@ -15,7 +15,7 @@ bool isForbiddenPath(string path) {
 }
 
 string readFileFromPath(string path) {
-    std::ifstream ifs(path, std::ifstream::in);
+    std::ifstream ifs(path, std::ifstream::binary);
 
     char c = ifs.get();
     string res = "";

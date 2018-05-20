@@ -1,7 +1,11 @@
 #include "responseBuilder.h"
 
 string createContentType(string header) {
-    if (header.find(".html") != std::string::npos) {
+    std::size_t http_pos = header.find ("HTTP/1.1");
+    header = header.substr(0, http_pos);
+
+
+    if (header.find(".html") != std::string::npos || header.find(" / ") != std::string::npos ) {
         return "text/html";
     }
 
@@ -22,7 +26,7 @@ string createContentType(string header) {
     }
 
     if (header.find(".css") != std::string::npos) {
-        return "application/x-pointplus";
+        return "text/css";
     }
 
     if (header.find(".pdf") != std::string::npos) {
@@ -33,7 +37,7 @@ string createContentType(string header) {
 }
 
 string buildResponse(string status, string contentType, int contentLength, string data) {
-    return "HTTP/1.1 " + status + " \r\n Content-Type: " + contentType + " \r\n Content-Length: " +
+    return "HTTP/1.1 " + status + "\r\nContent-Type: " + contentType + " \r\nContent-Length: " +
            to_string(contentLength) +
            " \r\n\r\n " + data;
 }

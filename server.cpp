@@ -7,8 +7,23 @@ bool isGetMethod(string header) {
     return (header.find("GET") != std::string::npos);
 }
 
+string getHost(string header) {
+    size_t host_pos = header.find("Host: ");
+    host_pos += 6;
+    char *header2 = &header[0u];
+    string host = "";
+
+
+    while( header2[host_pos] != ':' && header2[host_pos+1] != 'C' && header2[host_pos+1] != '\n') {
+        host += header2[host_pos];
+        ++host_pos;
+    }
+
+    return host;
+}
+
 int main(int argc, char *argv[]) {
-    if( argc < 3 ) {
+    if (argc < 3) {
         cout << "Za mało argumentow";
         exit(1);
     }
@@ -32,28 +47,25 @@ int main(int argc, char *argv[]) {
         char recv_buffer[BUFFER_SIZE + 1];
         Recv(conn_sockfd, recv_buffer, BUFFER_SIZE, 0);
         string recv = recv_buffer;
-
-
         if (!isGetMethod(recv)) {
             response = buildNotImplementedResponse();
         } else {
-            string path = "./" + dir + extractPath(recv);
+            string path = "./" + dir + "/" + getHost(recv) + "/" + extractPath(recv);
 
             if (isForbiddenPath(path)) {
                 response = buildForbiddenResponse();
             } else {
-                if( extractPath(recv) == "/" ) {
+                if (extractPath(recv).back() == '/') {
                     path += "index.html";
                 }
                 string file = readFileFromPath(path);
-
                 if (file.length()) {
-                    if(extractPath(recv) == "/") {
+                    if (extractPath(recv) == "/") {
                         response = buildMovedPermanentlyResponse(file, recv);
-                    }else {
+                    } else {
                         response = buildSuccessResponse(file, recv);
                     }
-                } else if ( ! file.length()) {
+                } else if (!file.length()) {
                     response = buildNotFoundResponse();
                 } else {
                     response = buildNotImplementedResponse();
