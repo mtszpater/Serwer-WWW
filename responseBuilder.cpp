@@ -39,7 +39,7 @@ string createContentType(string header) {
 string buildResponse(string status, string contentType, int contentLength, string data) {
     return "HTTP/1.1 " + status + "\r\nContent-Type: " + contentType + " \r\nContent-Length: " +
            to_string(contentLength) +
-           " \r\n\r\n " + data;
+           " \r\n\r\n" + data;
 }
 
 string buildForbiddenResponse() {
